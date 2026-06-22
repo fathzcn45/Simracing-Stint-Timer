@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0d0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SR Timer" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <title>SimRacing Timer</title>
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --bg2: #18181c;
+      --bg3: #222228;
+      --card: #1a1a20;
+      --border: #2e2e38;
+      --text: #f0f0f2;
+      --muted: #88889a;
+      --hint: #55556a;
+      --green: #3ecf6e;
+      --green-dim: #1a4a2e;
+      --green-text: #a8f0c0;
+      --amber: #f5a623;
+      --amber-dim: #4a3510;
+      --amber-text: #ffd580;
+      --red: #e74c4c;
+      --radius-sm: 10px;
+      --radius: 16px;
+      --radius-lg: 22px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bot: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      overscroll-behavior: none;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      max-width: 430px;
+      margin: 0 auto;
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bot);
+      min-height: 100dvh;
+    }
+
+    /* ── Top Bar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px 10px;
+    }
+    .topbar-title {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      color: var(--text);
+    }
+    .topbar-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 11px;
+      border-radius: 20px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      transition: all 0.3s ease;
+    }
+    .topbar-badge.racing { background: var(--green-dim); border-color: var(--green); color: var(--green-text); }
+    .topbar-badge.on-break { background: var(--amber-dim); border-color: var(--amber); color: var(--amber-text); }
+    .badge-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+    .racing .badge-dot { background: var(--green); animation: pulse 1.3s infinite; }
+    .on-break .badge-dot { background: var(--amber); animation: pulse 1.3s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+    /* ── Scroll Area ── */
+    .scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 4px 16px 16px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* ── Timer Ring Card ── */
+    .ring-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 20px 22px;
+      text-align: center;
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .ring-wrap {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 20px;
+    }
+    .ring-svg {
+      transform: rotate(-90deg);
+      width: 200px; height: 200px;
+    }
+    .ring-bg { fill: none; stroke: var(--bg3); stroke-width: 10; }
+    .ring-fg {
+      fill: none;
+      stroke: var(--green);
+      stroke-width: 10;
+      stroke-linecap: round;
+      stroke-dasharray: 534;
+      stroke-dashoffset: 534;
+      transition: stroke-dashoffset 1s linear, stroke 0.4s ease;
+    }
+    .ring-fg.on-break { stroke: var(--amber); }
+    .ring-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .ring-time {
+      font-size: 38px;
+      font-weight: 300;
+      letter-spacing: -1px;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+    .ring-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 5px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .timer-phase {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .timer-phase span {
+      color: var(--green);
+      font-weight: 500;
+    }
+    .timer-phase.on-break span { color: var(--amber); }
+
+    /* ── Stat Row ── */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .stat-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .stat-box-label {
+      font-size: 11px;
+      color: var(--hint);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+    .stat-box-val {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-box-unit {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 400;
+      margin-left: 2px;
+    }
+
+    /* ── Buttons ── */
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: transform 0.12s, opacity 0.2s, background 0.2s;
+      -webkit-user-select: none; user-select: none;
+      touch-action: manipulation;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.35; pointer-events: none; }
+    .btn-start {
+      background: var(--green);
+      border-color: var(--green);
+      color: #0d1f10;
+      font-weight: 600;
+    }
+    .btn-start:active { background: #2fa855; }
+    .btn-break {
+      background: var(--amber-dim);
+      border-color: var(--amber);
+      color: var(--amber-text);
+    }
+    .btn-break:active { background: #5a4015; }
+    .btn-stop {
+      grid-column: 1 / -1;
+      background: transparent;
+      border-color: var(--border);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* ── Settings Card ── */
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--hint);
+      padding: 0 4px;
+      margin: 18px 0 10px;
+    }
+    .settings-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-info { flex: 1; }
+    .setting-name { font-size: 15px; color: var(--text); }
+    .setting-desc { font-size: 12px; color: var(--hint); margin-top: 2px; }
+    .stepper {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .step-btn {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg3);
+      color: var(--text);
+      font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: background 0.12s, transform 0.1s;
+      line-height: 1;
+      touch-action: manipulation;
+    }
+    .step-btn:active { transform: scale(0.9); background: var(--border); }
+    .step-val {
+      min-width: 62px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    /* ── Log Card ── */
+    .log-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .log-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .log-header-title { font-size: 13px; font-weight: 600; color: var(--muted); }
+    .log-clear { font-size: 12px; color: var(--hint); cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: background 0.15s; }
+    .log-clear:active { background: var(--bg3); }
+    .log-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .log-item:last-child { border-bottom: none; }
+    .log-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+    .log-icon.stint { background: var(--green-dim); }
+    .log-icon.break { background: var(--amber-dim); }
+    .log-meta { flex: 1; }
+    .log-type-name { font-size: 14px; color: var(--text); font-weight: 500; }
+    .log-time-str { font-size: 12px; color: var(--hint); margin-top: 1px; }
+    .log-dur { font-size: 13px; font-weight: 500; color: var(--muted); }
+    .log-empty { padding: 28px; text-align: center; color: var(--hint); font-size: 14px; }
+
+    /* ── Toast Notification ── */
+    .toast {
+      position: fixed;
+      top: calc(var(--safe-top) + 12px);
+      left: 50%; transform: translateX(-50%) translateY(-80px);
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 18px;
+      display: flex; align-items: center; gap: 10px;
+      font-size: 14px; font-weight: 500;
+      color: var(--text);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s;
+      opacity: 0;
+      z-index: 999;
+      white-space: nowrap;
+      max-width: calc(100vw - 32px);
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast-icon { font-size: 20px; }
+
+    /* ── Install Banner ── */
+    .install-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: var(--green-dim);
+      border: 1px solid var(--green);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 14px;
+    }
+    .install-banner.show { display: flex; }
+    .install-txt { flex: 1; font-size: 13px; color: var(--green-text); }
+    .install-txt strong { display: block; font-size: 14px; margin-bottom: 2px; }
+    .install-btn {
+      background: var(--green);
+      color: #0d1f10;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .install-dismiss { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; padding: 4px; }
+
+    /* ── Notif permission banner ── */
+    .notif-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 14px;
+    }
+    .notif-banner.show { display: flex; }
+    .notif-txt { flex: 1; font-size: 13px; color: var(--muted); }
+    .notif-txt strong { display: block; color: var(--text); font-size: 14px; margin-bottom: 2px; }
+    .notif-allow { background: var(--bg); border: 1px solid var(--border); color: var(--text); font-size: 13px; font-weight: 500; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toastIcon">🏁</span>
+  <span id="toastMsg">Mesaj</span>
+</div>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <span class="topbar-title">🏎 SimRacing Timer</span>
+  <div class="topbar-badge" id="statusBadge">
+    <span class="badge-dot"></span>
+    <span id="statusText">Bekleniyor</span>
+  </div>
+</div>
+
+<!-- Scroll Area -->
+<div class="scroll-area">
+
+  <!-- Install Banner (Android) -->
+  <div class="install-banner" id="installBanner">
+    <div class="install-txt">
+      <strong>Ana ekrana ekle</strong>
+      Uygulama gibi kullan, internet gerektirmez
+    </div>
+    <button class="install-btn" id="installBtn">Yükle</button>
+    <button class="install-dismiss" id="installDismiss">✕</button>
+  </div>
+
+  <!-- Notif Banner -->
+  <div class="notif-banner" id="notifBanner">
+    <div class="notif-txt">
+      <strong>🔔 Bildirimler</strong>
+      Stint/mola bitiminde uyarı almak için izin ver
+    </div>
+    <button class="notif-allow" id="notifAllow">İzin Ver</button>
+  </div>
+
+  <!-- Ring Timer Card -->
+  <div class="ring-card">
+    <div class="ring-wrap">
+      <svg class="ring-svg" viewBox="0 0 200 200">
+        <circle class="ring-bg" cx="100" cy="100" r="85"/>
+        <circle class="ring-fg" id="ringFg" cx="100" cy="100" r="85"/>
+      </svg>
+      <div class="ring-center">
+        <div class="ring-time" id="ringTime">–:––:––</div>
+        <div class="ring-label" id="ringLabel">Kalan Süre</div>
+      </div>
+    </div>
+    <div class="timer-phase" id="timerPhase">Yarışa başlamak için butona dokun</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="stat-box-label">Tamamlanan Stint</div>
+      <div class="stat-box-val" id="stintCount">0 <span class="stat-box-unit">kez</span></div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Tamamlanan Mola</div>
+      <div class="stat-box-val" id="breakCount">0 <span class="stat-box-unit">kez</span></div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Toplam Yarış</div>
+      <div class="stat-box-val" id="totalRacing">0 <span class="stat-box-unit">dk</span></div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Toplam Mola</div>
+      <div class="stat-box-val" id="totalBreak">0 <span class="stat-box-unit">dk</span></div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="btn-row">
+    <button class="btn btn-start" id="btnStart" onclick="startRacing()">▶ Yarış Başlat</button>
+    <button class="btn btn-break" id="btnBreak" onclick="startBreak()" disabled>☕ Mola Ver</button>
+    <button class="btn btn-stop" id="btnStop" onclick="stopAll()">◼ Durdur & Sıfırla</button>
+  </div>
+
+  <!-- Settings -->
+  <div class="section-title">Ayarlar</div>
+  <div class="settings-card">
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-name">Stint süresi</div>
+        <div class="setting-desc">Yarış periyodu</div>
+      </div>
+      <div class="stepper">
+        <button class="step-btn" onclick="adjust('stint',-30)">−</button>
+        <span class="step-val" id="stintVal">2sa 0dk</span>
+        <button class="step-btn" onclick="adjust('stint',30)">+</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-name">Mola süresi</div>
+        <div class="setting-desc">Dinlenme süresi</div>
+      </div>
+      <div class="stepper">
+        <button class="step-btn" onclick="adjust('break',-5)">−</button>
+        <span class="step-val" id="breakVal">30dk</span>
+        <button class="step-btn" onclick="adjust('break',5)">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="section-title">Oturum Geçmişi</div>
+  <div class="log-card">
+    <div class="log-header">
+      <span class="log-header-title">Son aktiviteler</span>
+      <span class="log-clear" onclick="clearLog()">Temizle</span>
+    </div>
+    <div id="logList">
+      <div class="log-empty">Henüz kayıt yok 🏎</div>
+    </div>
+  </div>
+
+</div><!-- end scroll-area -->
+
+<script>
+// ── State ──
+let stintSecs = 2 * 3600;
+let breakSecs = 30 * 60;
+let mode = 'idle'; // idle | racing | break
+let elapsed = 0;
+let ticker = null;
+let stintCount = 0, brkCount = 0;
+let totalRacS = 0, totalBrkS = 0;
+let sessionLog = [];
+let notifGranted = false;
+let deferredPrompt = null;
+
+const CIRC = 2 * Math.PI * 85; // ≈ 534
+
+// ── Helpers ──
+function fmt(s) {
+  let h = Math.floor(s / 3600);
+  let m = Math.floor((s % 3600) / 60);
+  let sec = s % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+function fmtDur(s) {
+  let h = Math.floor(s / 3600);
+  let m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h}sa${m > 0 ? ' ' + m + 'dk' : ''}`;
+  return `${m}dk`;
+}
+function fmtStintVal(s) {
+  let h = Math.floor(s / 3600);
+  let m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}sa ${m}dk` : `${m}dk`;
+}
+function nowStr() {
+  let d = new Date();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+// ── Toast ──
+let toastTimer = null;
+function toast(icon, msg) {
+  let t = document.getElementById('toast');
+  document.getElementById('toastIcon').textContent = icon;
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3800);
+}
+
+// ── Native Notification ──
+function sendNotif(title, body) {
+  if (notifGranted && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(sw => {
+      sw.active && sw.active.postMessage({ type: 'NOTIFY', title, body });
+    });
+  }
+}
+
+// ── Ring Update ──
+function updateRing() {
+  let target = mode === 'racing' ? stintSecs : (mode === 'break' ? breakSecs : 1);
+  let remaining = Math.max(0, target - elapsed);
+  let pct = Math.min(1, elapsed / target);
+  let offset = CIRC * (1 - pct);
+
+  document.getElementById('ringTime').textContent = fmt(remaining);
+  document.getElementById('ringFg').style.strokeDashoffset = offset.toFixed(1);
+  document.getElementById('ringFg').className = 'ring-fg' + (mode === 'break' ? ' on-break' : '');
+
+  if (mode === 'racing') {
+    document.getElementById('ringLabel').textContent = 'Stint Kalan';
+    document.getElementById('timerPhase').className = 'timer-phase';
+    document.getElementById('timerPhase').innerHTML = `Stint: <span>${fmtStintVal(stintSecs)}</span> · ${Math.round(pct*100)}% tamamlandı`;
+  } else if (mode === 'break') {
+    document.getElementById('ringLabel').textContent = 'Mola Kalan';
+    document.getElementById('timerPhase').className = 'timer-phase on-break';
+    document.getElementById('timerPhase').innerHTML = `Mola: <span>${fmtDur(breakSecs)}</span> · ${Math.round(pct*100)}% tamamlandı`;
+  } else {
+    document.getElementById('ringTime').textContent = '–:––:––';
+    document.getElementById('ringLabel').textContent = 'Kalan Süre';
+    document.getElementById('timerPhase').textContent = 'Yarışa başlamak için butona dokun';
+    document.getElementById('ringFg').style.strokeDashoffset = CIRC;
+  }
+}
+
+// ── Stats ──
+function updateStats() {
+  document.getElementById('stintCount').innerHTML = `${stintCount} <span class="stat-box-unit">kez</span>`;
+  document.getElementById('breakCount').innerHTML = `${brkCount} <span class="stat-box-unit">kez</span>`;
+  document.getElementById('totalRacing').innerHTML = `${Math.round(totalRacS/60)} <span class="stat-box-unit">dk</span>`;
+  document.getElementById('totalBreak').innerHTML = `${Math.round(totalBrkS/60)} <span class="stat-box-unit">dk</span>`;
+}
+
+// ── Status Badge ──
+function updateBadge() {
+  let badge = document.getElementById('statusBadge');
+  let txt = document.getElementById('statusText');
+  badge.className = 'topbar-badge';
+  if (mode === 'racing') { badge.classList.add('racing'); txt.textContent = 'Yarışta'; }
+  else if (mode === 'break') { badge.classList.add('on-break'); txt.textContent = 'Molada'; }
+  else txt.textContent = 'Bekleniyor';
+}
+
+// ── Log ──
+function addLog(type, dur) {
+  sessionLog.unshift({ type, dur, time: nowStr() });
+  if (sessionLog.length > 10) sessionLog.pop();
+  renderLog();
+}
+function renderLog() {
+  let el = document.getElementById('logList');
+  if (!sessionLog.length) {
+    el.innerHTML = '<div class="log-empty">Henüz kayıt yok 🏎</div>';
+    return;
+  }
+  el.innerHTML = sessionLog.map(l => {
+    let isStint = l.type.includes('Stint');
+    return `
+      <div class="log-item">
+        <div class="log-icon ${isStint ? 'stint' : 'break'}">${isStint ? '🏁' : '☕'}</div>
+        <div class="log-meta">
+          <div class="log-type-name">${l.type}</div>
+          <div class="log-time-str">${l.time}</div>
+        </div>
+        <div class="log-dur">${fmtDur(l.dur)}</div>
+      </div>`;
+  }).join('');
+}
+function clearLog() {
+  sessionLog = [];
+  renderLog();
+}
+
+// ── Buttons ──
+function setButtons(state) {
+  let start = document.getElementById('btnStart');
+  let brk = document.getElementById('btnBreak');
+  if (state === 'idle') {
+    start.disabled = false; brk.disabled = false;
+  } else if (state === 'racing') {
+    start.disabled = true; brk.disabled = false;
+  } else if (state === 'break') {
+    start.disabled = true; brk.disabled = true;
+  }
+}
+
+// ── Tick ──
+function tick() {
+  elapsed++;
+  if (mode === 'racing') totalRacS++;
+  if (mode === 'break') totalBrkS++;
+
+  let target = mode === 'racing' ? stintSecs : breakSecs;
+  let remaining = target - elapsed;
+
+  // Warnings
+  if (remaining === 300) {
+    let label = mode === 'racing' ? 'Stinte' : 'Molaya';
+    toast('⏰', `${label} 5 dakika kaldı!`);
+    sendNotif('⏰ 5 Dakika Kaldı', `${label} 5 dakika kaldı!`);
+  }
+  if (remaining === 60) {
+    let label = mode === 'racing' ? 'Stinte' : 'Molaya';
+    toast('⏰', `${label} 1 dakika kaldı!`);
+    sendNotif('⏰ 1 Dakika Kaldı', `${label} 1 dakika kaldı!`);
+  }
+
+  // Completion
+  if (remaining <= 0) {
+    if (mode === 'racing') {
+      stintCount++;
+      addLog('Stint', stintSecs);
+      toast('🏁', 'Stint tamamlandı! Mola zamanı.');
+      sendNotif('🏁 Stint Bitti!', 'Harika iş! Şimdi mola zamanı.');
+      mode = 'break'; elapsed = 0;
+      setButtons('break');
+      vibrate([200, 100, 200, 100, 400]);
+      // Auto-start break after a moment
+      setTimeout(() => {
+        if (mode === 'break' && elapsed === 0) {
+          // break already set, just let timer run
+        }
+      }, 500);
+    } else if (mode === 'break') {
+      brkCount++;
+      addLog('Mola', breakSecs);
+      toast('🏎', 'Mola bitti! Tekrar piste çık!');
+      sendNotif('🏎 Mola Bitti!', 'Dinlenme tamamlandı. Yarışa hazır ol!');
+      mode = 'racing'; elapsed = 0;
+      setButtons('racing');
+      vibrate([400, 100, 200]);
+    }
+  }
+
+  updateRing();
+  updateStats();
+  updateBadge();
+}
+
+function vibrate(pattern) {
+  if ('vibrate' in navigator) navigator.vibrate(pattern);
+}
+
+// ── Controls ──
+function startRacing() {
+  if (ticker) clearInterval(ticker);
+  mode = 'racing'; elapsed = 0;
+  ticker = setInterval(tick, 1000);
+  setButtons('racing');
+  toast('🏎', 'Yarış başladı! İyi yarışlar!');
+  vibrate([100, 50, 100]);
+  updateRing(); updateBadge();
+}
+
+function startBreak() {
+  if (ticker) clearInterval(ticker);
+  if (mode === 'racing' && elapsed > 0) addLog('Stint (Erken bırakıldı)', elapsed);
+  mode = 'break'; elapsed = 0;
+  ticker = setInterval(tick, 1000);
+  setButtons('break');
+  toast('☕', 'Mola başladı! İyi dinlenmeler.');
+  vibrate([100]);
+  updateRing(); updateBadge();
+}
+
+function stopAll() {
+  if (ticker) clearInterval(ticker);
+  ticker = null; mode = 'idle'; elapsed = 0;
+  setButtons('idle');
+  updateRing(); updateBadge(); updateStats();
+}
+
+// ── Settings ──
+function adjust(which, delta) {
+  if (mode !== 'idle') {
+    toast('⚠️', 'Ayar için önce durdur');
+    return;
+  }
+  if (which === 'stint') {
+    stintSecs = Math.max(1800, Math.min(18000, stintSecs + delta * 60));
+    document.getElementById('stintVal').textContent = fmtStintVal(stintSecs);
+  } else {
+    breakSecs = Math.max(300, Math.min(3600, breakSecs + delta * 60));
+    document.getElementById('breakVal').textContent = fmtDur(breakSecs);
+  }
+}
+
+// ── Notification Permission ──
+function checkNotifPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    notifGranted = true;
+  } else if (Notification.permission === 'default') {
+    document.getElementById('notifBanner').classList.add('show');
+  }
+}
+
+document.getElementById('notifAllow').addEventListener('click', () => {
+  Notification.requestPermission().then(perm => {
+    notifGranted = perm === 'granted';
+    document.getElementById('notifBanner').classList.remove('show');
+    if (notifGranted) toast('🔔', 'Bildirimler açıldı!');
+  });
+});
+
+// ── PWA Install (Android) ──
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').classList.add('show');
+});
+
+document.getElementById('installBtn').addEventListener('click', () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(() => {
+    deferredPrompt = null;
+    document.getElementById('installBanner').classList.remove('show');
+  });
+});
+
+document.getElementById('installDismiss').addEventListener('click', () => {
+  document.getElementById('installBanner').classList.remove('show');
+});
+
+window.addEventListener('appinstalled', () => {
+  toast('✅', 'Uygulama yüklendi!');
+  document.getElementById('installBanner').classList.remove('show');
+});
+
+// ── Service Worker ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+    console.log('SW registered:', reg.scope);
+  }).catch(err => console.log('SW error:', err));
+}
+
+// ── Init ──
+checkNotifPermission();
+document.getElementById('stintVal').textContent = fmtStintVal(stintSecs);
+document.getElementById('breakVal').textContent = fmtDur(breakSecs);
+updateRing();
+updateStats();
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#0d0d0f"/>
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#3ecf6e" stroke-width="20"/>
+  <circle cx="256" cy="256" r="130" fill="none" stroke="#2a2a2e" stroke-width="40"/>
+  <!-- Steering wheel spokes -->
+  <line x1="256" y1="126" x2="256" y2="176" stroke="#3ecf6e" stroke-width="18" stroke-linecap="round"/>
+  <line x1="256" y1="336" x2="256" y2="386" stroke="#3ecf6e" stroke-width="18" stroke-linecap="round"/>
+  <line x1="126" y1="256" x2="176" y2="256" stroke="#3ecf6e" stroke-width="18" stroke-linecap="round"/>
+  <line x1="336" y1="256" x2="386" y2="256" stroke="#3ecf6e" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="30" fill="#3ecf6e"/>
+  <!-- Flag checkered hint -->
+  <rect x="310" y="110" width="22" height="22" fill="#fff" rx="2"/>
+  <rect x="332" y="110" width="22" height="22" fill="#0d0d0f" rx="2"/>
+  <rect x="310" y="132" width="22" height="22" fill="#0d0d0f" rx="2"/>
+  <rect x="332" y="132" width="22" height="22" fill="#fff" rx="2"/>
+</svg>
